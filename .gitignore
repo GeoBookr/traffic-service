@@ -1,0 +1,43 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.env/
+.env.*  # Ignore environment-specific files
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Logs and debugging
+*.log
+.env
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+*.pid
+*.tar
+*.bak
+
+# PyCharm / VSCode IDE
+.idea/
+.vscode/
+
+# mypy / coverage / test outputs
+.mypy_cache/
+.coverage
+htmlcov/
+.cache/
+pytest_cache/
+
+# Ignore compiled shared object files
+*.so
+
+# Ignore any secret config or local override files
+secrets/
