@@ -16,3 +16,5 @@ six==1.17.0
 tzdata==2025.2
 wheel==0.45.1
 yarl==1.18.3
+geopy==2.4.1
+pycountry_convert==0.7.2
