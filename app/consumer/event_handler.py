@@ -5,6 +5,7 @@ from app.domain.route_generator import generate_route, generate_city_route
 from app.domain.country_mapper import coordinates_to_country_info
 from app.messaging.publisher import publisher
 from app.models.db_models import RegionType
+from fastapi.concurrency import run_in_threadpool
 from app.services.slot_service import replicate_geo
 from app.services.saga_orchestrator import saga_reservation
 from app.db.database import SessionLocal
@@ -53,7 +54,7 @@ async def handle_journey_event(event: dict):
             region_type = RegionType.country
             continents_in_route = {origin_continent, destination_continent}
             if len(continents_in_route) > 1:
-                replicate_geo(db, route, list(continents_in_route))
+                await run_in_threadpool(replicate_geo, db, route, list(continents_in_route))
 
         logger.info(
             f"Route approved for journey {event_instance.journey_id}: {route}")
@@ -65,8 +66,7 @@ async def handle_journey_event(event: dict):
                 step["continent"] = origin_continent
             saga_steps.append(step)
 
-        confirmed = saga_reservation(
-            db, event_instance.journey_id, saga_steps, region_type)
+        confirmed = await run_in_threadpool(saga_reservation, db, event_instance.journey_id, saga_steps, region_type)
         current_time = datetime.now(timezone.utc)
 
         if confirmed:
@@ -88,6 +88,6 @@ async def handle_journey_event(event: dict):
                 timestamp=current_time
             )
             await publisher.publish_event(rejected_event.model_dump(), routing_key="journey.rejected.v1")
-        db.close()
+        await run_in_threadpool(db.close)
     except Exception as e:
         logger.exception(f"Error handling journey event: {e}")
