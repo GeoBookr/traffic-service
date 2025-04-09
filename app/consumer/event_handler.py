@@ -3,8 +3,8 @@ from app.domain.route_generator import generate_route, generate_city_route
 from app.domain.country_mapper import coordinates_to_country_info
 from app.messaging.publisher import publisher
 from app.models.db_models import RegionType
-from app.services.slot_service import get_or_create_slot, replicate_geo
-from app.services.reservation_service import confirm_journey_and_reserve_slots
+from app.services.slot_service import replicate_geo
+from app.services.saga_orchestrator import saga_reservation
 from app.db.database import SessionLocal
 
 
@@ -55,8 +55,15 @@ async def handle_journey_event(event: dict):
 
         print(
             f"[event_handler] Route approved for journey {journey_id}: {route}")
-        confirmed = confirm_journey_and_reserve_slots(
-            db, journey_id, route, region_type)
+
+        saga_steps = []
+        for region in route:
+            step = {"region": region}
+            if region_type == RegionType.city:
+                step["continent"] = origin_continent
+            saga_steps.append(step)
+
+        confirmed = saga_reservation(db, journey_id, saga_steps, region_type)
         if confirmed:
             print(
                 f"[event_handler] Journey {journey_id} confirmed and slots reserved.")
