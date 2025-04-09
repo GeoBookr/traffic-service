@@ -1,6 +1,6 @@
 import logging
 from sqlalchemy.orm import Session
-from app.models.db_models import Journey, Slot, RegionType
+from app.models.db_models import Journey, Slot, RegionType, Route
 from app.services.reservation_service import reserve_slot_for_region
 from app.services.slot_service import get_continent_for_city
 
@@ -33,7 +33,7 @@ def release_slot_for_region(db: Session, region_type: RegionType, region_identif
         raise
 
 
-def saga_reservation(db: Session, journey_id: str, steps: list[dict], region_type: RegionType) -> bool:
+def saga_reservation(db: Session, journey_id: str, steps: list[dict], region_type: RegionType, route: list[str]) -> bool:
     """
     Orchestrates a saga that reserves a slot on each region along the journey.
     'steps' should be a list of dictionaries for each reservation step. For example:
@@ -64,6 +64,12 @@ def saga_reservation(db: Session, journey_id: str, steps: list[dict], region_typ
                 raise Exception("Journey not found during saga reservation.")
             journey.status = "confirmed"
             db.add(journey)
+
+            route_entry = Route(
+                journey_id=journey_id,
+                route=route,
+            )
+            db.add(route_entry)
         logger.info(f"Saga reservation succeeded for journey {journey_id}")
         return True
 

@@ -11,6 +11,7 @@ from app.services.saga_orchestrator import saga_reservation
 from app.db.database import SessionLocal
 from app.models.events import JourneyApprovedEvent, JourneyRejectedEvent, JourneyBookedEvent
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -66,7 +67,7 @@ async def handle_journey_event(event: dict):
                 step["continent"] = origin_continent
             saga_steps.append(step)
 
-        confirmed = await run_in_threadpool(saga_reservation, db, event_instance.journey_id, saga_steps, region_type)
+        confirmed = await run_in_threadpool(saga_reservation, db, event_instance.journey_id, saga_steps, region_type, route)
         current_time = datetime.now(timezone.utc)
 
         if confirmed:

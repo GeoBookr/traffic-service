@@ -4,7 +4,8 @@ from app.models.db_models import Slot, RegionType
 from geopy.geocoders import Nominatim
 import pycountry_convert as pc
 import logging
-
+from psycopg.errors import LockNotAvailable
+from tenacity import retry, stop_after_attempt, retry_if_exception_type, wait_random_exponential
 logger = logging.getLogger(__name__)
 
 
@@ -32,6 +33,11 @@ def get_continent_for_city(city: str) -> str:
         return "Unknown"
 
 
+@retry(
+    wait=wait_random_exponential(multiplier=0.5, min=0.5, max=3),
+    stop=stop_after_attempt(15),
+    retry=retry_if_exception_type(LockNotAvailable)
+)
 def get_or_create_slot(db: Session, region_type: RegionType, region_identifier: str, continent: str = None) -> Slot:
     try:
         slot = db.query(Slot).with_for_update(nowait=True).filter(
@@ -39,7 +45,7 @@ def get_or_create_slot(db: Session, region_type: RegionType, region_identifier: 
             Slot.region_type == region_type
         ).first()
     except Exception as lock_error:
-        raise Exception(
+        raise LockNotAvailable(
             f"Could not lock slot for {region_identifier}: {lock_error}")
 
     if slot is None:
