@@ -1,8 +1,11 @@
+# ./traffic-service/app/consumer/event_handler.py
 import json
 from app.domain.route_generator import generate_route, generate_city_route
-from app.domain.rate_limiter import is_under_limit, is_under_city_limit
-from app.messaging.publisher import publisher
 from app.domain.country_mapper import coordinates_to_country_info
+from app.messaging.publisher import publisher
+from app.models.slot_model import RegionType
+from app.services.slot_service import get_or_create_slot, replicate_geo
+from app.db.database import SessionLocal
 
 
 async def handle_journey_event(event: dict):
@@ -24,56 +27,67 @@ async def handle_journey_event(event: dict):
 
         if origin_info is None or destination_info is None:
             print(
-                f"[event_handler] Could not determine location information from coordinates for journey event: {event}")
+                f"[event_handler] Could not determine location info for journey event: {event}")
             return
 
         origin_country = origin_info[1]
         destination_country = destination_info[1]
         origin_city = origin_info[3]
         destination_city = destination_info[3]
+        origin_continent = origin_info[2]
+        destination_continent = destination_info[2]
+
+        db = SessionLocal()
 
         if origin_country == destination_country:
             print(
-                f"[event_handler] Both locations in {origin_country}: Using city-to-city route generation.")
+                f"[event_handler] Both locations in {origin_country} – using city-to-city routing.")
             route = generate_city_route(origin_city, destination_city)
+            for city in route:
+                slot = get_or_create_slot(
+                    db, RegionType.city, city, continent=origin_continent)
+                current_count = 0
+                if current_count >= slot.slots:
+                    print(
+                        f"[event_handler] Route blocked: city '{city}' capacity ({slot.slots}) exceeded.")
+                    await publisher.publish_event({
+                        "type": "route.rejected",
+                        "journey_id": journey_id,
+                        "reason": f"City {city} over capacity",
+                        "route": route,
+                    })
+                    db.close()
+                    return
         else:
             print(
-                f"[event_handler] Locations in different countries ({origin_country} vs {destination_country}): Using country-to-country routing.")
+                f"[event_handler] Different countries ({origin_country} vs {destination_country}) – using country-to-country routing.")
             route = generate_route(origin_country, destination_country)
-
-        for loc in route:
-            current_count = 0
-            if origin_country == destination_country:
-                if not is_under_city_limit(origin_country, loc, current_count):
+            for country in route:
+                slot = get_or_create_slot(db, RegionType.country, country)
+                current_count = 0
+                if current_count >= slot.slots:
                     print(
-                        f"[event_handler] Route blocked: city {loc} exceeds limit")
+                        f"[event_handler] Route blocked: country '{country}' capacity ({slot.slots}) exceeded.")
                     await publisher.publish_event({
                         "type": "route.rejected",
                         "journey_id": journey_id,
-                        "reason": f"City {loc} over capacity",
+                        "reason": f"Country {country} over capacity",
                         "route": route,
                     })
-                    return
-            else:
-                if not is_under_limit(loc, current_count):
-                    print(
-                        f"[event_handler] Route blocked: country {loc} exceeds limit")
-                    await publisher.publish_event({
-                        "type": "route.rejected",
-                        "journey_id": journey_id,
-                        "reason": f"Country {loc} over capacity",
-                        "route": route,
-                    })
+                    db.close()
                     return
 
-        print(f"[event_handler] Route approved for journey {journey_id}")
+            continents_in_route = {origin_continent, destination_continent}
+            if len(continents_in_route) > 1:
+                replicate_geo(db, route, list(continents_in_route))
+
         print(
-            f"[event_handler] Route: {route}, Origin: {origin_country}, Destination: {destination_country}")
+            f"[event_handler] Route approved for journey {journey_id}: {route}")
         await publisher.publish_event({
             "type": "route.approved",
             "journey_id": journey_id,
             "route": route,
         })
-
+        db.close()
     except Exception as e:
         print(f"[event_handler] Error handling journey event: {e}")
