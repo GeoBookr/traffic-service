@@ -22,8 +22,3 @@ def configure_logging():
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     logger.addHandler(handler)
-
-
-if __name__ == "__main__":
-    configure_logging()
-    logging.info("Logging configured")
