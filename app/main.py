@@ -2,7 +2,7 @@ import asyncio
 from app.consumer.consumer import start_consumer
 from app.messaging.publisher import publisher
 from app.core.config import settings
-from logging_config import configure_logging
+from app.logging_config import configure_logging
 
 configure_logging()
 

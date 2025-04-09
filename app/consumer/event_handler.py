@@ -1,5 +1,6 @@
 import json
 import logging
+from datetime import datetime, timezone
 from app.domain.route_generator import generate_route, generate_city_route
 from app.domain.country_mapper import coordinates_to_country_info
 from app.messaging.publisher import publisher
@@ -7,25 +8,24 @@ from app.models.db_models import RegionType
 from app.services.slot_service import replicate_geo
 from app.services.saga_orchestrator import saga_reservation
 from app.db.database import SessionLocal
+from app.models.events import JourneyApprovedEvent, JourneyRejectedEvent, JourneyBookedEvent
 
 logger = logging.getLogger(__name__)
 
 
 async def handle_journey_event(event: dict):
     try:
-        journey_id = event.get("journey_id")
-        origin_lat = event.get("origin_lat")
-        origin_lon = event.get("origin_lon")
-        destination_lat = event.get("destination_lat")
-        destination_lon = event.get("destination_lon")
+        event_instance: JourneyBookedEvent = JourneyBookedEvent.model_validate(
+            event)
 
-        if None in (origin_lat, origin_lon, destination_lat, destination_lon):
+        if None in (event_instance.origin_lat, event_instance.origin_lon, event_instance.destination_lat, event_instance.destination_lon):
             logger.error(f"Missing coordinate(s) in journey event: {event}")
             return
 
-        origin_info = coordinates_to_country_info(origin_lat, origin_lon)
+        origin_info = coordinates_to_country_info(
+            event_instance.origin_lat, event_instance.origin_lon)
         destination_info = coordinates_to_country_info(
-            destination_lat, destination_lon)
+            event_instance.destination_lat, event_instance.destination_lon)
 
         if origin_info is None or destination_info is None:
             logger.error(
@@ -55,7 +55,8 @@ async def handle_journey_event(event: dict):
             if len(continents_in_route) > 1:
                 replicate_geo(db, route, list(continents_in_route))
 
-        logger.info(f"Route approved for journey {journey_id}: {route}")
+        logger.info(
+            f"Route approved for journey {event_instance.journey_id}: {route}")
 
         saga_steps = []
         for region in route:
@@ -64,22 +65,29 @@ async def handle_journey_event(event: dict):
                 step["continent"] = origin_continent
             saga_steps.append(step)
 
-        confirmed = saga_reservation(db, journey_id, saga_steps, region_type)
+        confirmed = saga_reservation(
+            db, event_instance.journey_id, saga_steps, region_type)
+        current_time = datetime.now(timezone.utc)
+
         if confirmed:
-            logger.info(f"Journey {journey_id} confirmed and slots reserved.")
-            await publisher.publish_event({
-                "type": "journey.confirmed",
-                "journey_id": journey_id,
-                "route": route,
-            })
+            logger.info(
+                f"Journey {event_instance.journey_id} confirmed and slots reserved.")
+            approved_event = JourneyApprovedEvent(
+                journey_id=event_instance.journey_id,
+                user_id=event_instance.user_id,
+                route=route,
+                timestamp=current_time
+            )
+            await publisher.publish_event(approved_event.model_dump(), routing_key="journey.approved.v1")
         else:
             logger.error(
-                f"Journey {journey_id} reservation failed. Marked as rejected.")
-            await publisher.publish_event({
-                "type": "journey.rejected",
-                "journey_id": journey_id,
-                "route": route,
-            })
+                f"Journey {event_instance.journey_id} reservation failed. Marked as rejected.")
+            rejected_event = JourneyRejectedEvent(
+                journey_id=event_instance.journey_id,
+                user_id=event_instance.user_id,
+                timestamp=current_time
+            )
+            await publisher.publish_event(rejected_event.model_dump(), routing_key="journey.rejected.v1")
         db.close()
     except Exception as e:
         logger.exception(f"Error handling journey event: {e}")
