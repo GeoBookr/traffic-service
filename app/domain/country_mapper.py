@@ -1,5 +1,8 @@
 from geopy.geocoders import Nominatim
 import pycountry_convert as pc
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def city_to_country(city: str) -> str | None:
@@ -13,7 +16,7 @@ def city_to_country(city: str) -> str | None:
                 return country_code.upper()
         return None
     except Exception as e:
-        print(f"Error geocoding city {city}: {e}")
+        logger.error(f"Error geocoding city {city}: {e}")
         return None
 
 
@@ -36,12 +39,12 @@ def coordinates_to_country_info(latitude: float, longitude: float) -> list[str] 
                     continent = pc.convert_continent_code_to_continent_name(
                         continent_code)
                 except Exception as conv_e:
-                    print(f"Error converting country code: {conv_e}")
+                    logger.error(f"Error converting country code: {conv_e}")
             city = address.get("city") or address.get(
                 "town") or address.get("village") or "Unknown"
             return [country, country_code, continent, city]
         else:
             return None
     except Exception as e:
-        print(f"Error in geocoding: {e}")
+        logger.error(f"Error in geocoding: {e}")
         return None

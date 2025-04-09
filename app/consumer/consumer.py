@@ -3,16 +3,19 @@ import json
 from aio_pika import connect_robust, IncomingMessage, ExchangeType
 from app.core.config import settings
 from app.consumer.event_handler import handle_journey_event
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def on_message(message: IncomingMessage):
-    async with message.process():  # auto-ack
+    async with message.process():
         try:
             payload = json.loads(message.body.decode())
-            print(f"[consumer] Received message: {payload}")
-            await handle_journey_event(payload)  # make this async if needed
+            logger.info(f"[consumer] Received message: {payload}")
+            await handle_journey_event(payload)
         except Exception as e:
-            print(f"[consumer] Error handling message: {e}")
+            logger.error(f"[consumer] Error handling message: {e}")
 
 
 async def start_consumer():
@@ -32,5 +35,5 @@ async def start_consumer():
     )
     await queue.bind(exchange, routing_key=settings.ROUTING_KEY)
 
-    print(f"[consumer] Listening on queue: {settings.QUEUE_NAME}")
+    logger.info(f"[consumer] Listening on queue: {settings.QUEUE_NAME}")
     await queue.consume(on_message)

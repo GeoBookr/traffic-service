@@ -3,6 +3,9 @@ from sqlalchemy.orm import Session
 from app.models.db_models import Slot, RegionType
 from geopy.geocoders import Nominatim
 import pycountry_convert as pc
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_continent_for_city(city: str) -> str:
@@ -20,7 +23,7 @@ def get_continent_for_city(city: str) -> str:
                         continent_code)
                     return continent
                 except Exception as conv_e:
-                    print(
+                    logger.error(
                         f"Error converting country code for city {city}: {conv_e}")
                     return "Unknown"
         return "Unknown"
@@ -62,7 +65,7 @@ def get_or_create_slot(db: Session, region_type: RegionType, region_identifier: 
 
 
 def replicate_geo(db: Session, route_country_identifiers: list[str], route_continents: list[str]):
-    print(
+    logger.info(
         f"[slot_service] Simulating geo-replication for route spanning continents: {route_continents}")
     for country in route_country_identifiers:
         slot = db.query(Slot).filter(
