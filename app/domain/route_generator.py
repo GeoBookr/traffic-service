@@ -18,7 +18,7 @@ def generate_route(origin: str, destination: str, max_stops: int = 5, seed: int 
     return [origin] + candidates[:num_stops] + [destination]
 
 
-def generate_city_route(origin_city: str, destination_city: str, max_stops: int = 3, seed: int = None) -> list[str]:
+def generate_city_route(origin_city: str, destination_city: str, max_stops: int = 5, seed: int = None) -> list[str]:
     """
     Generates a city-to-city route using geonamescache.
 
