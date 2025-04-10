@@ -3,6 +3,14 @@ PORT=7555
 
 .PHONY: build run stop logs
 
+ensure-network:
+	@if ! docker network ls | grep -q shared_network; then \
+		echo "Creating shared_network..."; \
+		docker network create shared_network; \
+	else \
+		echo "shared_network already exists."; \
+	fi
+
 build:
 	docker build -t $(SERVICE_NAME) .
 
@@ -15,7 +23,7 @@ stop:
 logs:
 	docker logs -f $(SERVICE_NAME)
 
-compose-up:
+compose-up: ensure-network
 	docker-compose up -d --build
 
 compose-down:
@@ -24,5 +32,6 @@ compose-down:
 compose-logs:
 	docker-compose logs -f
 
-rebuild: compose-down
-	docker-compose up -d --build
+rebuild:
+	$(MAKE) compose-down
+	$(MAKE) compose-up
