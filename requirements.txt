@@ -18,3 +18,9 @@ wheel==0.45.1
 yarl==1.18.3
 geopy==2.4.1
 pycountry_convert==0.7.2
+geonamescache==2.0.0
+tenacity==9.0.0
+sqlalchemy-cockroachdb==2.0.2
+fastapi==0.115.12
+psycopg==3.2.6
+psycopg-binary==3.2.6

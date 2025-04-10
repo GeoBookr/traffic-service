@@ -7,10 +7,17 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: traffic-validation-service
+    depends_on:
+      - cockroachdb
+      - rabbitmq
     ports:
       - "7555:7555"
     environment:
       DATABASE_URL: cockroachdb+psycopg://root@cockroachdb:26257/journey_db
       RABBITMQ_URL: amqp://guest:guest@rabbitmq/
       JWT_SECRET: mocksecret
-      DEBUG: "true"
+      DEBUG: "false"
+      QUEUE_NAME: traffic_service_queue
+      EXCHANGE_NAME: journey.events
+      ROUTING_KEY: journey.booked.v1
+      SERVICE_NAME: traffic-service
