@@ -34,6 +34,7 @@ async def start_consumer():
         durable=True
     )
     await queue.bind(exchange, routing_key=settings.ROUTING_KEY)
+    await queue.bind(exchange, routing_key=settings.ROUTING_KEY2)
 
     logger.info(f"[consumer] Listening on queue: {settings.QUEUE_NAME}")
     await queue.consume(on_message)

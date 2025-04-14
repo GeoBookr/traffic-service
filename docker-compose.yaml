@@ -18,6 +18,7 @@ services:
       QUEUE_NAME: traffic_service_queue
       EXCHANGE_NAME: journey.events
       ROUTING_KEY: journey.booked.v1
+      ROUTING_KEY2: journey.canceled.v1
       SERVICE_NAME: traffic-service
     networks:
       - shared_network

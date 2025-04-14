@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Enum, Float, Integer, ForeignKey, JSON
+from sqlalchemy import Column, String, DateTime, Enum, Float, Integer, ForeignKey, JSON, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 import uuid
@@ -41,10 +41,13 @@ class Slot(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     region_type = Column(Enum(RegionType), nullable=False)
-    region_identifier = Column(String, nullable=False, unique=True)
+    region_identifier = Column(String, nullable=False)
+    slot_time = Column(DateTime, nullable=False)
     slots = Column(Integer, nullable=False)
     reserved = Column(Integer, nullable=False, default=0)
     continent = Column(String, nullable=True)
+    __table_args__ = (UniqueConstraint('region_identifier',
+                      'slot_time', name='uix_region_time'),)
 
 
 class Route(Base):

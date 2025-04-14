@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from app.models.db_models import Journey, Slot, RegionType
 from app.services.slot_service import get_or_create_slot, get_continent_for_city
+from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
@@ -10,10 +11,10 @@ def monitor_reservation_failure(region_identifier: str, error: Exception):
     logger.warning(f"Reservation failure for {region_identifier}: {error}")
 
 
-def reserve_slot_for_region(db: Session, region_type: RegionType, region_identifier: str, continent: str = None) -> None:
+def reserve_slot_for_region(db: Session, region_type: RegionType, region_identifier: str, slot_time: datetime,  continent: str = None) -> None:
     try:
         slot = get_or_create_slot(
-            db, region_type, region_identifier, continent)
+            db, region_type, region_identifier, slot_time, continent)
         available = slot.slots - slot.reserved
         if available < 1:
             raise Exception(f"Insufficient capacity for {region_identifier}")
