@@ -49,7 +49,8 @@ def saga_reservation(db: Session, journey_id: str, steps: list[dict], region_typ
     """
     reserved_steps = []
     try:
-        with db.begin():
+        txn = db.begin_nested() if db.in_transaction() else db.begin()
+        with txn:
             for step in steps:
                 region = step["region"]
                 continent_value = step.get("continent")
@@ -71,6 +72,7 @@ def saga_reservation(db: Session, journey_id: str, steps: list[dict], region_typ
                 route=route,
             )
             db.add(route_entry)
+        db.commit()
         logger.info(f"Saga reservation succeeded for journey {journey_id}")
         return True
 
